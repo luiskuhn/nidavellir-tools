@@ -1,0 +1,80 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nidavellir-tools"
+version = "0.1.0.dev0"
+description = "Reusable model packaging and transfer-learning utilities"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+  { name = "Luis Kuhn Cuellar" },
+]
+keywords = ["bioimageio", "machine-learning", "model-packaging", "pytorch", "transfer-learning"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "numpy>=1.26,<3",
+  "PyYAML>=6,<7",
+  "tifffile>=2024.8",
+  "torch>=2.4,<3",
+]
+
+[project.optional-dependencies]
+bioimageio = ["bioimageio.core>=0.11,<0.12"]
+huggingface = ["huggingface-hub>=0.24,<2"]
+mlflow = ["mlflow>=2.16,<3"]
+dev = [
+  "build>=1.2",
+  "pytest>=8",
+  "pytest-cov>=5",
+  "ruff>=0.6",
+  "twine>=5",
+]
+
+[project.scripts]
+nidavellir = "nidavellir_tools.cli:main"
+nidavellir-build = "nidavellir_tools.build_model_package:main"
+nidavellir-registry = "nidavellir_tools.model_package_registry:main"
+nidavellir-samples = "nidavellir_tools.create_sample_tensors:main"
+
+[project.urls]
+Homepage = "https://github.com/luiskuhn/nidavellir-tools"
+Issues = "https://github.com/luiskuhn/nidavellir-tools/issues"
+Repository = "https://github.com/luiskuhn/nidavellir-tools"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nidavellir_tools"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src",
+  "/tests",
+  "/README.md",
+  "/LICENSE",
+  "/CHANGELOG.md",
+  "/Dockerfile",
+  "/pyproject.toml",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
