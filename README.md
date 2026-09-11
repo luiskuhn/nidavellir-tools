@@ -74,5 +74,5 @@ docker run --rm \
 The project was extracted from
 [`luiskuhn/nuxnet-training`](https://github.com/luiskuhn/nuxnet-training), where
 the workflow was first exercised for 3D nuclei segmentation and parent-to-child
-fine-tuning. The standalone package preserves that code history while removing
-NuxNet-specific assumptions.
+fine-tuning. The standalone package is derived from that implementation while
+removing NuxNet-specific assumptions.
