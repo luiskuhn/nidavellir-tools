@@ -44,7 +44,48 @@ nidavellir-registry --help
 nidavellir-samples --help
 ```
 
-## Image axes
+## Dataset reading (unreleased)
+
+`nidavellir_tools.data_loading` contains the readers extracted from
+`nuxnet-training` at commit `3e74a613fbcdf9f7ef6a902867175060d6b7fd65`.
+This addition is Python-only and requires no new dependencies.
+
+```python
+from pathlib import Path
+from nidavellir_tools.data_loading import (
+    VolumePair, OMEVolume, read_bia_pairs, extract_dataset_archive,
+    _read_ome, _read_voxel_size_um,
+)
+
+for pair in read_bia_pairs(Path("dataset")):
+    image = _read_ome(pair.image, mask=False)  # CZYX, original dtype
+    mask = _read_ome(pair.annotation, mask=True)  # ZYX, original dtype
+    spacing = image.voxel_size_um  # Z,Y,X in micrometers
+
+# Keep the temporary extraction alive while consuming the files.
+with extract_dataset_archive("dataset.zip") as root:
+    pairs = read_bia_pairs(root)
+    image = _read_ome(pairs[0].image, mask=False)
+```
+
+Exactly one directory below the supplied root must contain both `images.tsv`
+and `annotations.tsv`. Paths resolve relative to that directory or its parent,
+as in NuxNet's `bia/` and `data/` submission layout. Existing column aliases,
+identifier/path matching, split/group fields, and OME-TIFF suffix checks remain.
+These readers support this particular layout, not arbitrary BIA submissions or
+BioImage.IO dataset RDF validation.
+
+OME reading uses the first series, requires positive PhysicalSizeZ/Y/X metadata,
+and retains the existing restrictions on time/sample axes and mask channels.
+It does not resample, normalize, or impose binary labels. The underscore-prefixed
+reader names are intentionally retained for NuxNet import compatibility.
+
+When adopting this module, replace NuxNet's matching definitions and constants
+with imports above. Keep its download, splitting, preprocessing, dataset and
+Lightning classes in NuxNet. The published 0.1.0 release does not include this
+module yet; install a wheel built from this checkout to test the extraction.
+
+## Model sample image axes
 
 Sample TIFF creation supports model tensors described by explicit BioImage.IO
 axes. Standard 2D and 3D layouts include `BCYX` and `BCZYX`. The exact NPY

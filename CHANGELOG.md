@@ -4,6 +4,10 @@ All notable changes to this project will be documented here.
 
 ## [Unreleased]
 
+- Add Python-only `nidavellir_tools.data_loading` readers extracted from
+  NuxNet: BIA table pairing, temporary ZIP extraction, and OME-TIFF reading.
+  Existing folder conventions, pixel values, calibration, and errors are preserved.
+
 ## [0.1.0] - 2026-09-13
 
 - Extract the reusable Nidavellir tools from `nuxnet-training`.
