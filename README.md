@@ -8,24 +8,23 @@ The library is intentionally independent of any model architecture, training
 framework, microscopy modality, or dataset. Consuming projects remain
 responsible for their model, DataLoader, augmentation, model RDF, and model card.
 
-> **Status:** early standalone-package extraction. The initial API may change
-> before version 1.0.
+> **Status:** the initial API may change before version 1.0.
 
 ## Installation
 
-Until the first PyPI release, install from a checkout:
+Install the core package from PyPI:
 
 ```bash
-python -m pip install .
+python -m pip install nidavellir-tools
 ```
 
 Optional integrations are installed explicitly, for example:
 
 ```bash
-python -m pip install ".[bioimageio,huggingface,mlflow]"
+python -m pip install "nidavellir-tools[bioimageio,huggingface,mlflow]"
 ```
 
-After the first release, replace `.` with `nidavellir-tools` in these commands.
+For development from a checkout, use `python -m pip install -e ".[dev]"`.
 
 ## Command line
 
