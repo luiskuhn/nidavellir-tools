@@ -10,8 +10,7 @@ owns training, preprocessing, augmentation, scientific validation, and deploymen
 The dataset reader supports a specific table-based layout rather than arbitrary
 datasets; the uncertainty API operates on PyTorch modules and tensors.
 
-> **Release status:** this README describes the PR/development version. Model
-> packaging is available in `0.1.0`; dataset reading and uncertainty are unreleased.
+> **Version:** this README describes `0.2.0`, which adds dataset reading and uncertainty.
 > Installing `nidavellir-tools==0.1.0` will not provide these two new modules.
 > The API may change before version 1.0.
 
@@ -23,8 +22,8 @@ datasets; the uncertainty API operates on PyTorch modules and tensors.
 - [Stage, inspect, and load packages](#stage-inspect-and-load-packages)
 - [Export a fine-tuned child package](#export-a-fine-tuned-child-package)
 - [Validate and publish](#validate-and-publish)
-- [Dataset reading](#dataset-reading-unreleased)
-- [Monte Carlo dropout uncertainty](#monte-carlo-dropout-uncertainty-unreleased)
+- [Dataset reading](#dataset-reading)
+- [Monte Carlo dropout uncertainty](#monte-carlo-dropout-uncertainty)
 - [Sample TIFFs and tensor axes](#sample-tiffs-and-tensor-axes)
 - [Security and operational limitations](#security-and-operational-limitations)
 - [Development and Docker](#development-and-docker)
@@ -56,15 +55,15 @@ Optional integrations are explicit:
 python -m pip install "nidavellir-tools[bioimageio,huggingface,mlflow]"
 ```
 
-To use the unreleased modules, install from a checkout containing this PR:
+For development, install from a checkout:
 
 ```bash
 python -m pip install -e ".[dev]"
 ```
 
 For a non-editable installation, build a wheel with `python -m build` and install
-that wheel in the consuming environment. This branch still declares `0.1.0`, so
-replacing an existing `0.1.0` installation may require `--force-reinstall`.
+that wheel in the consuming environment. Replacing an installation with a
+development wheel carrying the same version may require `--force-reinstall`.
 Do not mistake a development wheel for the published release. Pin the eventual
 released version in production dependency files.
 
@@ -393,7 +392,7 @@ are public. `--private` is not a visibility-change operation for existing reposi
 Never include credentials, private training data, or unwanted artifacts in the
 package directory: the upload sends its folder contents.
 
-## Dataset reading (unreleased)
+## Dataset reading
 
 `nidavellir_tools.data_loading` contains the readers extracted from
 `nuxnet-training` at commit `3e74a613fbcdf9f7ef6a902867175060d6b7fd65`.
@@ -478,10 +477,9 @@ DataLoader workers finish accessing their files.
 
 When adopting this module, replace NuxNet's matching definitions and constants
 with imports above. Keep its download, splitting, preprocessing, dataset and
-Lightning classes in NuxNet. The published 0.1.0 release does not include this
-module yet; install a wheel built from this checkout to test the extraction.
+Lightning classes in NuxNet. This module requires version 0.2.0 or newer.
 
-## Monte Carlo dropout uncertainty (unreleased)
+## Monte Carlo dropout uncertainty
 
 `nidavellir_tools.uncertainty` provides application-independent PyTorch inference
 utilities. It does not load checkpoints, move tensors between devices, preprocess
@@ -549,8 +547,7 @@ The sampling approach follows the earlier
 [RTS uncertainty implementation](https://github.com/qbic-pipelines/rts-prediction-package/blob/main/rts_package/utils/uncertainty.py),
 but deliberately preserves trained rates and enables only dropout, not full
 training mode. See also [Gal and Ghahramani (2016)](https://proceedings.mlr.press/v48/gal16.html).
-This module is not included in the published 0.1.0 release; use a wheel built from
-this checkout until the next release.
+This module requires version 0.2.0 or newer.
 
 ### Lower-level context and custom prediction
 
@@ -659,7 +656,7 @@ Common problems:
 
 | Symptom | Check |
 | --- | --- |
-| Missing `data_loading` or `uncertainty` import | Install a checkout/wheel containing this PR; remove any vendored package shadowing it |
+| Missing `data_loading` or `uncertainty` import | Install version 0.2.0 or newer; remove any vendored package shadowing it |
 | State-dict missing/unexpected keys | Architecture kwargs, checkpoint key, and prefix filtering must match the bare network |
 | Test output mismatch | Use the exact raw model input/output, evaluation mode, matching dtype, and compatible dependencies |
 | Missing sample TIFF | Generate it at the RDF-declared path beside the specification before building |
