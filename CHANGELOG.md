@@ -4,6 +4,8 @@ All notable changes to this project will be documented here.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-14
+
 - Add Python-only Monte Carlo dropout inference with temporary dropout-only
   evaluation, streaming mean/variance/std, optional samples, and class selection.
 
@@ -20,5 +22,6 @@ All notable changes to this project will be documented here.
 - Stage, inspect, validate, and publish model packages.
 - Load parent packages and export fine-tuned child packages.
 
-[Unreleased]: https://github.com/luiskuhn/nidavellir-tools/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/luiskuhn/nidavellir-tools/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/luiskuhn/nidavellir-tools/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/luiskuhn/nidavellir-tools/releases/tag/v0.1.0
