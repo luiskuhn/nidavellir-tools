@@ -4,6 +4,10 @@ All notable changes to this project will be documented here.
 
 ## [Unreleased]
 
+- Add structured official BioImage.IO validation for directories and ZIPs, external
+  JSON reports, explicit validation/error status, and optional build-time gating.
+  BioImage.IO remains an optional dependency; validation uses the active environment.
+
 ## [0.2.0] - 2026-09-14
 
 - Add Python-only Monte Carlo dropout inference with temporary dropout-only

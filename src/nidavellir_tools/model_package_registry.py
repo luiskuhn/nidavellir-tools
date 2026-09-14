@@ -15,7 +15,6 @@ import importlib
 import importlib.util
 import json
 import shutil
-import subprocess  # nosec B404: only a discovered fixed executable is invoked
 import tempfile
 import urllib.request
 import zipfile
@@ -346,12 +345,11 @@ def publish_huggingface(
     return str(result)
 
 
-def validate_bioimageio(package: Path) -> None:
-    """Run the official BioImage.IO CLI against a package directory or archive."""
-    executable = shutil.which("bioimageio")
-    if executable is None:
-        raise RuntimeError("bioimageio is required; install bioimageio.core")
-    subprocess.run([executable, "test", str(package)], check=True)  # nosec B603
+def validate_bioimageio(package: Path, **kwargs):
+    """Compatibility import for structured official validation (optional extra)."""
+    from nidavellir_tools.validation import validate_bioimageio as validate
+
+    return validate(package, **kwargs)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -377,6 +375,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate_parser = subparsers.add_parser("validate")
     validate_parser.add_argument("package", type=Path)
+    validate_parser.add_argument("--report", type=Path)
+    validate_parser.add_argument("--weight-format", default="pytorch_state_dict")
+    validate_parser.add_argument("--device", action="append", help="Repeatable; default: cpu")
     publish_parser = subparsers.add_parser("publish-hf")
     publish_parser.add_argument("package", type=Path)
     publish_parser.add_argument("repo_id")
@@ -433,8 +434,16 @@ def main(argv: Sequence[str] | None = None) -> None:
             )
         print(json.dumps(metadata, indent=2, default=str))
     elif args.command == "validate":
-        verify(args.package)
-        validate_bioimageio(args.package)
+        report = validate_bioimageio(
+            args.package,
+            report_path=args.report,
+            weight_format=args.weight_format,
+            devices=args.device,
+            raise_on_failure=False,
+        )
+        print(json.dumps(report.to_dict(), indent=2))
+        if report.status != "passed":
+            raise SystemExit(1)
     elif args.command == "publish-hf":
         print(
             publish_huggingface(

@@ -77,7 +77,7 @@ released version in production dependency files.
 | `nidavellir inspect` | Print RDF metadata and check declared hashes | `model_package_registry.verify` |
 | `nidavellir load` | Reconstruct a model; optionally export weights and metadata | `model_package_registry.load_package` |
 | `nidavellir export-child` | Package fine-tuned weights with parent lineage | `model_package_registry.export_child_package` |
-| `nidavellir validate` | Check hashes and run official BioImage.IO tests | `verify` then `validate_bioimageio` |
+| `nidavellir validate` | Check hashes and run official BioImage.IO tests | `validation.validate_bioimageio` |
 | `nidavellir publish-hf` | Upload a package to a Hugging Face model repository | `model_package_registry.publish_huggingface` |
 
 Module paths in the table are relative to `nidavellir_tools`. Dataset reading and
@@ -352,17 +352,110 @@ and the main builder instead of this shortcut.
 entries that declare SHA-256 hashes. They do not validate the complete schema,
 check every file against `SHA256SUMS`, or establish scientific correctness.
 
-For official BioImage.IO testing, install the extra and validate a **staged directory**:
+### Structured official validation (development addition)
+
+The structured reports and build flags below are new on this branch and are not
+in PyPI 0.2.0. Install this checkout with `python -m pip install -e ".[bioimageio]"`
+to use them. Version 0.2.0 provides the earlier `nidavellir validate` CLI wrapper.
+
+For official BioImage.IO testing, install the extra and validate a directory or ZIP:
 
 ```bash
 python -m pip install "nidavellir-tools[bioimageio]"
-nidavellir validate packages/model-v1
+nidavellir validate packages/model-v1 --report reports/model-v1.json
+nidavellir validate packages/model-v1.zip --report reports/model-v1-zip.json
 ```
 
-The command runs the local checks followed by `bioimageio test`. A successful
-build is not a guarantee of passing this separate validation. Review model-card
-claims and scientific metadata yourself. This toolkit does not automatically
-submit a model to the BioImage Model Zoo or deposit datasets in BioImage Archive.
+The command checks declared artifact hashes and calls the official
+`bioimageio.core.test_description` API for metadata and dynamic inference tests.
+It defaults to `pytorch_state_dict` weights on CPU in the **currently active
+environment**. Choose a representation with `--weight-format torchscript` or a
+device with `--device cuda:0` (repeatable). The selected representation must exist.
+The validator uses the model's declared processing contract; this is distinct
+from the builder's direct raw-input/raw-output comparison.
+
+A passing result requires the official summary status to be `passed`: format-only
+validity is not sufficient. Failed checks and execution errors both cause a nonzero
+CLI exit status. Reports distinguish `failed` (integrity or official checks) from
+`error` (input, missing dependencies, or execution problems). Inspect both the
+`error` field and official `summary.details` when diagnosing a failure.
+
+Each JSON report contains schema version 1, status, original package path,
+SHA-256 identity, timestamp, Python/platform and library versions, requested
+settings, and the official JSON summary including its warnings/errors. ZIP
+identity hashes the archive bytes. Directory identity hashes a sorted list of
+`[relative POSIX path, file SHA-256]` pairs encoded as compact ASCII-escaped JSON
+in UTF-8; it excludes directory metadata and is not expected to equal a ZIP hash.
+
+Reports must be **outside** the input package and cannot overwrite existing files.
+Each validation operates on a temporary copy, leaving input artifacts unchanged.
+Directories with internal symlinks are rejected. ZIP extraction rejects traversal;
+no download, extraction-size quota, or security sandbox is provided. Copying and
+hashing large packages requires additional disk space and I/O.
+
+### Python API and build-time gate
+
+```python
+from nidavellir_tools.validation import validate_bioimageio, BioimageioValidationError
+
+try:
+    report = validate_bioimageio(
+        "packages/model-v1.zip",
+        report_path="reports/model-v1.json",
+        devices=["cpu"],
+    )
+    print(report.status, report.package_sha256)
+except BioimageioValidationError as exc:
+    # The requested report is saved before this exception is raised.
+    print(exc.report.to_dict())
+    raise
+```
+
+Use `raise_on_failure=False` to inspect a returned report without an exception;
+the caller must then check `report.status == "passed"`. Invalid report locations,
+existing reports, and report-write errors still raise directly. Existing imports
+from `model_package_registry.validate_bioimageio` remain supported.
+
+For an opt-in package-build gate:
+
+```bash
+nidavellir build \
+  --run-artifacts-dir artifacts/run-001 \
+  --output-dir packages/model-v1 \
+  --validate-bioimageio \
+  --validation-report reports/model-v1-build.json
+```
+
+The Python builder accepts `validate_bioimageio=True` and optional
+`validation_report=Path(...)`. The default report is adjacent to the output,
+named `<output-directory-name>.validation.json`. A report path without validation
+enabled is rejected. Validation runs after assembly and local checks, **before ZIP
+creation**. On failure, the directory and diagnostic report remain for inspection
+but no new ZIP is created. A ZIP left over from a previous run is not removed;
+use fresh output/report paths and never treat a failed build's old archive as new.
+Successful validation does not change the builder's `(directory, archive)` return.
+
+Keep this opt-in for routine training exports; require it before production
+publication. Neither `export-child` nor `publish-hf` automatically invokes it.
+Validate the exact final package after any edits, and associate the external report
+with that package digest. This toolkit does not automatically submit models to
+the BioImage Model Zoo or deposit datasets in BioImage Archive.
+
+### Environment and trust boundaries
+
+Validation executes model code and may perform network I/O for referenced
+resources. Run only trusted packages, preferably in a disposable container with
+appropriate network/device limits. The current API runs in-process and official
+testing may affect framework/RNG state; do not run it concurrently with training
+in the same process. A separate validation CLI/container is preferable.
+
+The optional `bioimageio` extra remains outside core dependencies. Model runtime
+dependencies must already be installed. This first implementation does not create
+Conda environments or prove that the declared environment can be recreated; that
+is a separate portability test. CPU success does not imply GPU support. Reports
+identify the installed validator versions because results can vary by version.
+No validation result establishes scientific quality, calibrated uncertainty,
+absence of data leakage, or automatic acceptance by the Model Zoo.
 
 To upload to Hugging Face, configure credentials with repository write access
 through the Hugging Face client, then explicitly run:
@@ -694,6 +787,17 @@ docker run --rm \
 ```
 
 This mounts the checkout read/write and generates build artifacts in `dist/`.
+Run the real-validator integration test explicitly (it is skipped in core-only tests):
+
+```bash
+python -m pip install -e ".[dev,bioimageio]"
+NIDAVELLIR_TEST_BIOIMAGEIO=1 python -m pytest -q tests/test_validation_official.py
+```
+
+The integration test builds a synthetic model, checks directory and ZIP validation,
+and verifies that incorrect expected outputs fail the official inference test even
+when local checksums are valid.
+
 Optional-service operations require their extras and credentials and are not
 implied by the core test suite. Never place credentials in source files or images.
 
