@@ -354,6 +354,19 @@ check every file against `SHA256SUMS`, or establish scientific correctness.
 
 ### Structured official validation (development addition)
 
+There are three distinct levels of checking:
+
+| Check | What it establishes | What it does not establish |
+| --- | --- | --- |
+| `inspect` / `verify` | RDF identifies a model; files with declared hashes match | Full specification compliance or successful inference |
+| `build` | Strict model reconstruction reproduces the supplied raw output fixture | Compatibility with the complete BioImage.IO processing contract |
+| `validate` / `build --validate-bioimageio` | Official metadata and inference tests pass in the selected environment | Scientific accuracy, environment recreatability, or Zoo acceptance |
+
+Internally, validation computes the input digest, prepares a temporary snapshot,
+checks local integrity, calls the official validator, and returns a
+`ValidationReport`. The optional JSON file is written before a validation-failure
+exception is raised. The original package is never intentionally edited.
+
 The structured reports and build flags below are new on this branch and are not
 in PyPI 0.2.0. Install this checkout with `python -m pip install -e ".[bioimageio]"`
 to use them. Version 0.2.0 provides the earlier `nidavellir validate` CLI wrapper.
@@ -361,7 +374,7 @@ to use them. Version 0.2.0 provides the earlier `nidavellir validate` CLI wrappe
 For official BioImage.IO testing, install the extra and validate a directory or ZIP:
 
 ```bash
-python -m pip install "nidavellir-tools[bioimageio]"
+python -m pip install -e ".[bioimageio]"
 nidavellir validate packages/model-v1 --report reports/model-v1.json
 nidavellir validate packages/model-v1.zip --report reports/model-v1-zip.json
 ```
@@ -456,6 +469,40 @@ is a separate portability test. CPU success does not imply GPU support. Reports
 identify the installed validator versions because results can vary by version.
 No validation result establishes scientific quality, calibrated uncertainty,
 absence of data leakage, or automatic acceptance by the Model Zoo.
+
+### Using validation from a training project
+
+Training projects do not need to change their model or data-loader code to use
+these checks. After a release containing this feature is published, update the
+project's dependency pin, install its `bioimageio` extra in the packaging/validation
+environment, and rebuild any container image. Core-only training environments can
+remain unchanged if validation runs in a separate environment.
+
+For an image that already includes the new API, the extra, and your model's
+dependencies, mount the package read-only and persist the report separately:
+
+```bash
+mkdir -p reports
+docker run --rm \
+  --entrypoint nidavellir \
+  -v "$PWD/packages/model-v1:/package:ro" \
+  -v "$PWD/reports:/reports" \
+  your-training-image \
+  validate /package --report /reports/model-v1.json
+```
+
+Use a fresh report filename for another attempt. A report left only in a disposable
+container is lost when that container exits. Retain reports with the corresponding
+package archives, outside their contents.
+
+Existing `bioimageio test ...` instructions remain valid if a project prefers the
+upstream CLI directly. Replacing them with `nidavellir validate ... --report ...`
+adds the structured report and consistent local checks. Merely upgrading the
+dependency does not enable validation automatically: add the validation command
+or opt in with `build --validate-bioimageio`. Validate final parent and child
+packages before publication, and repeat validation after editing package files.
+
+### Publish to Hugging Face
 
 To upload to Hugging Face, configure credentials with repository write access
 through the Hugging Face client, then explicitly run:
