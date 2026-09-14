@@ -4,6 +4,9 @@ All notable changes to this project will be documented here.
 
 ## [Unreleased]
 
+- Add Python-only Monte Carlo dropout inference with temporary dropout-only
+  evaluation, streaming mean/variance/std, optional samples, and class selection.
+
 - Add Python-only `nidavellir_tools.data_loading` readers extracted from
   NuxNet: BIA table pairing, temporary ZIP extraction, and OME-TIFF reading.
   Existing folder conventions, pixel values, calibration, and errors are preserved.
