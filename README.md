@@ -10,7 +10,9 @@ owns training, preprocessing, augmentation, scientific validation, and deploymen
 The dataset reader supports a specific table-based layout rather than arbitrary
 datasets; the uncertainty API operates on PyTorch modules and tensors.
 
-> **Version:** this README describes `0.2.0`, which adds dataset reading and uncertainty.
+> **Version:** this README describes `0.3.0`, which adds structured official
+> BioImage.IO validation and optional build-time validation. Dataset reading and
+> uncertainty were introduced in `0.2.0`.
 > Installing `nidavellir-tools==0.1.0` will not provide these two new modules.
 > The API may change before version 1.0.
 
@@ -352,7 +354,7 @@ and the main builder instead of this shortcut.
 entries that declare SHA-256 hashes. They do not validate the complete schema,
 check every file against `SHA256SUMS`, or establish scientific correctness.
 
-### Structured official validation (development addition)
+### Structured official validation
 
 There are three distinct levels of checking:
 
@@ -367,14 +369,15 @@ checks local integrity, calls the official validator, and returns a
 `ValidationReport`. The optional JSON file is written before a validation-failure
 exception is raised. The original package is never intentionally edited.
 
-The structured reports and build flags below are new on this branch and are not
-in PyPI 0.2.0. Install this checkout with `python -m pip install -e ".[bioimageio]"`
-to use them. Version 0.2.0 provides the earlier `nidavellir validate` CLI wrapper.
+The structured reports and build flags below require version **0.3.0 or newer**.
+Version 0.2.0 provides the earlier `nidavellir validate` CLI wrapper, without
+structured reports or build-time validation. Install the extra in the same
+environment as the model's runtime dependencies.
 
 For official BioImage.IO testing, install the extra and validate a directory or ZIP:
 
 ```bash
-python -m pip install -e ".[bioimageio]"
+python -m pip install "nidavellir-tools[bioimageio]==0.3.0"
 nidavellir validate packages/model-v1 --report reports/model-v1.json
 nidavellir validate packages/model-v1.zip --report reports/model-v1-zip.json
 ```
@@ -473,8 +476,8 @@ absence of data leakage, or automatic acceptance by the Model Zoo.
 ### Using validation from a training project
 
 Training projects do not need to change their model or data-loader code to use
-these checks. After a release containing this feature is published, update the
-project's dependency pin, install its `bioimageio` extra in the packaging/validation
+these checks. Update the project's dependency pin to 0.3.0 or newer and install
+its `bioimageio` extra in the packaging/validation
 environment, and rebuild any container image. Core-only training environments can
 remain unchanged if validation runs in a separate environment.
 
