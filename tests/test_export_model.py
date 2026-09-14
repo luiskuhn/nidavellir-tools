@@ -1,9 +1,11 @@
 import io
 import json
 import zipfile
+from contextlib import nullcontext
 from pathlib import Path
 
 import numpy as np
+import pytest
 import tifffile
 import torch
 import yaml
@@ -31,7 +33,18 @@ def test_packaging_reference_is_valid_yaml_and_has_required_contract_sections():
     assert reference["weights"]["pytorch_state_dict"]["architecture"]["callable"]
 
 
-def test_builds_domain_independent_repository_package(tmp_path):
+@pytest.mark.parametrize("validation_mode", ["off", "pass", "fail"])
+def test_builds_domain_independent_repository_package(tmp_path, monkeypatch, validation_mode):
+    calls = []
+
+    def validate(package, *, report_path):
+        calls.append(package)
+        assert not package.with_suffix(".zip").exists()
+        assert report_path == tmp_path / "package.validation.json"
+        if validation_mode == "fail":
+            raise RuntimeError("official validation failed")
+
+    monkeypatch.setattr("nidavellir_tools.validation.validate_bioimageio", validate)
     architecture = tmp_path / "network.py"
     architecture.write_text(
         "import torch\nclass Network(torch.nn.Conv3d):\n"
@@ -104,17 +117,28 @@ def test_builds_domain_independent_repository_package(tmp_path):
     provenance = tmp_path / "run.json"
     provenance.write_text(json.dumps({"training": {"run_id": "run-123"}}), encoding="utf-8")
 
-    package, archive = builder.build_model_package(
-        specification,
-        checkpoint,
-        test_input,
-        test_output,
-        card,
-        tmp_path / "package",
-        provenance=provenance,
-        state_dict_key="state_dict",
-        strip_prefix="network.",
+    expectation = (
+        pytest.raises(RuntimeError, match="official validation failed")
+        if validation_mode == "fail"
+        else nullcontext()
     )
+    with expectation:
+        package, archive = builder.build_model_package(
+            specification,
+            checkpoint,
+            test_input,
+            test_output,
+            card,
+            tmp_path / "package",
+            provenance=provenance,
+            state_dict_key="state_dict",
+            strip_prefix="network.",
+            validate_bioimageio=validation_mode != "off",
+        )
+    assert len(calls) == (0 if validation_mode == "off" else 1)
+    if validation_mode == "fail":
+        assert not (tmp_path / "package.zip").exists()
+        return
     rdf = yaml.safe_load((package / "rdf.yaml").read_text())
     recorded = json.loads((package / "provenance.json").read_text())
 
