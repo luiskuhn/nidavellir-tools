@@ -113,8 +113,19 @@ def build_model_package(
     trace_input: Path | None = None,
     extra_files: list[Path] | None = None,
     overwrite: bool = False,
+    validate_bioimageio: bool = False,
+    validation_report: Path | None = None,
 ) -> tuple[Path, Path]:
     """Build and verify a package without assuming a domain, task, or architecture."""
+    if validation_report is not None and not validate_bioimageio:
+        raise ValueError("validation_report requires validate_bioimageio=True")
+    if validate_bioimageio:
+        from nidavellir_tools.validation import check_report_path
+
+        validation_report = validation_report or output.with_name(output.name + ".validation.json")
+        check_report_path(output, validation_report)
+        if validation_report.resolve() == output.with_suffix(".zip").resolve():
+            raise ValueError("Validation report cannot replace the package ZIP")
     if output.exists() and any(output.iterdir()):
         if not overwrite:
             raise FileExistsError(f"output directory is not empty: {output}")
@@ -216,6 +227,10 @@ def build_model_package(
     ]
     (output / "SHA256SUMS").write_text("\n".join(checksums) + "\n", encoding="utf-8")
     verify(output)
+    if validate_bioimageio:
+        from nidavellir_tools.validation import validate_bioimageio as validate
+
+        validate(output, report_path=validation_report)
     archive = output.with_suffix(".zip")
     _write_zip(output, archive)
     return output, archive
@@ -242,6 +257,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Additional file copied to the package root; may be repeated",
     )
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument("--validate-bioimageio", action="store_true")
+    parser.add_argument("--validation-report", type=Path)
     return parser
 
 
@@ -284,6 +301,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         trace_input=args.trace_input,
         extra_files=args.extra_file,
         overwrite=args.overwrite,
+        validate_bioimageio=args.validate_bioimageio,
+        validation_report=args.validation_report,
     )
     print(f"Model package: {output}")
     print(f"BioImage.IO archive: {archive}")
